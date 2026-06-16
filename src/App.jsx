@@ -59,7 +59,7 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 
       clearTimeout(hardTimer);
       const errBody = await res.text().catch(() => "");
       if (res.status === 401 || res.status === 403) {
-        throw new Error("Claude API authentication failed — check ANTHROPIC_API_KEY in .env");
+        throw new Error("Claude API authentication failed — set a real ANTHROPIC_API_KEY in .env, then restart the dev server (npm run dev).");
       }
       throw new Error(`Claude API error ${res.status}: ${errBody.slice(0, 200)}`);
     }

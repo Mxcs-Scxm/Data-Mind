@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  if (!env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY === 'your_anthropic_api_key_here') {
+    console.warn(
+      '\n⚠️  ANTHROPIC_API_KEY is missing or still a placeholder in .env — ' +
+      'every Claude call will fail with a 401 "x-api-key header is required" error.\n' +
+      '   Set a real key in .env, then restart the dev server (npm run dev).\n'
+    )
+  }
   return {
     plugins: [react()],
     server: {
