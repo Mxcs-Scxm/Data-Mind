@@ -16,12 +16,15 @@ const T = {
 
 const CLAUDE_MODEL = "claude-sonnet-4-6";
 const CLAUDE_ENDPOINT = "/api/anthropic/v1/messages";
+const NEWSAPI_ENDPOINT = "/api/newsapi/v2/everything";
 
 // Calls Claude with streaming (avoids idle-timeout: the connection never
 // goes quiet because tokens arrive continuously). If the stream stalls for
 // longer than `idleMs` with no new bytes, it aborts and retries once with
-// a smaller max_tokens budget (faster generation, lower stall risk).
-async function callClaude(content, { maxTokens = 2000, idleMs = 25000, onDelta } = {}) {
+// a smaller max_tokens budget (faster generation, lower stall risk). A
+// `hardMs` ceiling also bounds the whole call in case tokens keep trickling
+// in slowly forever without ever triggering the idle abort.
+async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 90000, onDelta } = {}) {
   const attempt = async (tokens) => {
     const controller = new AbortController();
     let idleTimer;
@@ -29,6 +32,7 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, onDelta }
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => controller.abort(), idleMs);
     };
+    const hardTimer = setTimeout(() => controller.abort(), hardMs);
 
     armIdleTimer();
     let res;
@@ -46,12 +50,17 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, onDelta }
       });
     } catch (err) {
       clearTimeout(idleTimer);
+      clearTimeout(hardTimer);
       throw err;
     }
 
     if (!res.ok || !res.body) {
       clearTimeout(idleTimer);
+      clearTimeout(hardTimer);
       const errBody = await res.text().catch(() => "");
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Claude API authentication failed — check ANTHROPIC_API_KEY in .env");
+      }
       throw new Error(`Claude API error ${res.status}: ${errBody.slice(0, 200)}`);
     }
 
@@ -85,6 +94,7 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, onDelta }
       }
     } finally {
       clearTimeout(idleTimer);
+      clearTimeout(hardTimer);
     }
     return full;
   };
@@ -178,7 +188,7 @@ const OUTLETS = [
   {id:"cbc",         name:"CBC",                   icon:"🇨🇦", domain:"cbc.ca",                      cat:"CA"},
 ];
 const OUTLET_CATS = ["INT","FR","UK","USA","DE","ES","IT","RU","CN","JP","IN","ME","LATAM","AU","CA"];
-const SRC_COLORS = {websearch:T.cyan, newsapi:T.amber, instagram:"#e1306c", twitter:"#1d9bf0", linkedin:"#0a66c2", file:T.teal, url:T.purple};
+const SRC_COLORS = {websearch:T.cyan, newsapi:T.amber, instagram:"#e1306c", twitter:"#1d9bf0", linkedin:"#0a66c2", file:T.teal, url:T.purple, scholar:T.purple};
 
 const Label = ({children, color=T.textD, style={}}) => (
   <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color,...style}}>{children}</div>
@@ -319,20 +329,22 @@ function MediaOutletsCard({onAdd,newsApiKey}) {
   const [query,setQuery]=useState("");
   const [cat,setCat]=useState("ALL");
   const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
   const toggle=id=>setSelected(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
   const filtered=cat==="ALL"?OUTLETS:OUTLETS.filter(o=>o.cat===cat);
   const doFetch=async()=>{
     if(selected.length===0&&!query.trim())return;
-    setLoading(true);
+    setLoading(true);setError("");
     const selO=OUTLETS.filter(o=>selected.includes(o.id));
     if(newsApiKey&&selO.length>0){
       const domains=selO.map(o=>o.domain).join(",");
       const q=query.trim()||"news";
       try{
-        const r=await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&domains=${domains}&pageSize=8&sortBy=publishedAt&apiKey=${newsApiKey}`);
+        const r=await fetch(`${NEWSAPI_ENDPOINT}?q=${encodeURIComponent(q)}&domains=${domains}&pageSize=8&sortBy=publishedAt`,{headers:{"X-Api-Key":newsApiKey}});
+        if(!r.ok)throw new Error(r.status===401||r.status===403?"NewsAPI key rejected — check it in Connectors":`NewsAPI error ${r.status}`);
         const d=await r.json();
         (d.articles||[]).forEach((a,i)=>onAdd({id:`outlet-${Date.now()}-${i}`,icon:"📰",label:a.title?.slice(0,70)||"Article",sub:`${a.source?.name} · ${a.publishedAt?.slice(0,10)}`,source:"newsapi",data:`${a.title}\n${a.description}\n${a.url}`}));
-      }catch(e){}
+      }catch(e){setError(e.message||"NewsAPI request failed");}
     } else {
       selO.forEach(o=>onAdd({id:`outlet-ws-${Date.now()}-${o.id}`,icon:o.icon,label:`${o.name}${query.trim()?" - "+query.trim():""}`,sub:`site:${o.domain}`,source:"websearch",data:`site:${o.domain} ${query.trim()||"latest news"}`,isQuery:true}));
     }
@@ -366,10 +378,11 @@ function MediaOutletsCard({onAdd,newsApiKey}) {
         <div style={{flex:1}}><Input value={query} onChange={setQuery} placeholder="Keyword (optional) — e.g. climate, AI, oil prices..." onEnter={doFetch}/></div>
         <Btn onClick={doFetch} disabled={loading||(selected.length===0&&!query.trim())} small>{loading?"Loading...":"Search"}</Btn>
       </div>
+      {error&&<div style={{marginTop:8,fontSize:11.5,color:T.red}}>{error}</div>}
     </div>
   );
 }
-function WebLivePanel({sources,selIds,toggleSel,delSrc,addSrc,creds,webQuery,setWebQuery,collectWeb,urlInput,setUrlInput,addUrl,newsQuery,setNewsQuery,collectNews}) {
+function WebLivePanel({sources,selIds,toggleSel,delSrc,addSrc,creds,webQuery,setWebQuery,collectWeb,urlInput,setUrlInput,addUrl,newsQuery,setNewsQuery,collectNews,newsError,scholarQuery,setScholarQuery,collectScholar}) {
   const webSrcs=sources.filter(s=>s.source!=="file");
   return (
     <div>
@@ -400,9 +413,17 @@ function WebLivePanel({sources,selIds,toggleSel,delSrc,addSrc,creds,webQuery,set
           <div style={{flex:1}}><Input value={newsQuery} onChange={setNewsQuery} placeholder="e.g. AI · CAC40 · geopolitics..." onEnter={collectNews}/></div>
           <Btn onClick={collectNews} small>Search</Btn>
         </div>
+        {newsError&&<div style={{marginTop:8,fontSize:11.5,color:T.red}}>{newsError}</div>}
       </ColSection>
       <ColSection icon="🗞️" title="Media Outlets" badge={0} badgeColor={T.primary}>
         <MediaOutletsCard onAdd={addSrc} newsApiKey={creds["newsapi"]?.apiKey}/>
+      </ColSection>
+      <ColSection icon="🎓" title="Google Scholar" badge={sources.filter(s=>s.source==="scholar").length} badgeColor={T.purple}>
+        <p style={{margin:"0 0 12px",fontSize:12.5,color:T.textD,lineHeight:1.6}}>Search academic papers and citations via Google Scholar.</p>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}><Input value={scholarQuery} onChange={setScholarQuery} placeholder="e.g. supply chain resilience FDI..." onEnter={collectScholar}/></div>
+          <Btn onClick={collectScholar} small>Search</Btn>
+        </div>
       </ColSection>
       <ColSection icon="📱" title="Social Media" badge={sources.filter(s=>["instagram","twitter","linkedin"].includes(s.source)).length} badgeColor="#e1306c">
         {!(creds.instagram||creds.twitter||creds.linkedin)
@@ -603,6 +624,9 @@ export default function App() {
   const [urlInput,setUrlInput]=useState("");
   const [webQuery,setWebQuery]=useState("");
   const [newsQuery,setNewsQuery]=useState("");
+  const [newsError,setNewsError]=useState("");
+  const [scholarQuery,setScholarQuery]=useState("");
+  const [fileError,setFileError]=useState("");
   const [aTypes,setATypes]=useState([0]);
   const [aHorizons,setAHorizons]=useState([1]);
   const [aDepth,setADepth]=useState([2]);
@@ -620,29 +644,45 @@ export default function App() {
   const collectWeb=()=>{if(!webQuery.trim())return;addSrc({id:`ws-${Date.now()}`,icon:"🔍",label:webQuery.trim(),sub:"Web search query",source:"websearch",data:webQuery.trim(),isQuery:true});setWebQuery("");};
   const collectNews=async()=>{
     if(!newsQuery.trim())return;
+    setNewsError("");
     const key=creds["newsapi"]?.apiKey;
     if(!key){addSrc({id:`news-${Date.now()}`,icon:"📰",label:newsQuery.trim(),sub:"NewsAPI - configure key",source:"newsapi",data:newsQuery.trim(),isQuery:true});setNewsQuery("");return;}
     try{
-      const r=await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(newsQuery)}&language=fr&pageSize=6&apiKey=${key}`);
+      const r=await fetch(`${NEWSAPI_ENDPOINT}?q=${encodeURIComponent(newsQuery)}&language=fr&pageSize=6`,{headers:{"X-Api-Key":key}});
+      if(!r.ok)throw new Error(r.status===401||r.status===403?"NewsAPI key rejected — check it in Connectors":`NewsAPI error ${r.status}`);
       const d=await r.json();
       (d.articles||[]).forEach((a,i)=>addSrc({id:`news-${Date.now()}-${i}`,icon:"📰",label:a.title?.slice(0,70)||"Article",sub:`${a.source?.name} · ${a.publishedAt?.slice(0,10)}`,source:"newsapi",data:`${a.title}\n${a.description}\n${a.url}`}));
-    }catch(e){}
+    }catch(e){setNewsError(e.message||"NewsAPI request failed");}
     setNewsQuery("");
   };
+  const collectScholar=()=>{
+    if(!scholarQuery.trim())return;
+    addSrc({id:`scholar-${Date.now()}`,icon:"🎓",label:scholarQuery.trim(),sub:"Google Scholar search",source:"scholar",data:`site:scholar.google.com ${scholarQuery.trim()}`,isQuery:true});
+    setScholarQuery("");
+  };
+  const MAX_FILE_BYTES=15*1024*1024;
   const handleFiles=useCallback(e=>{
+    setFileError("");
     Array.from(e.target.files||e.dataTransfer?.files||[]).forEach(f=>{
+      if(f.size>MAX_FILE_BYTES){setFileError(`"${f.name}" exceeds the 15 MB limit and was skipped.`);return;}
       const reader=new FileReader();
       reader.onload=ev=>addSrc({id:`file-${Date.now()}-${f.name}`,icon:"📄",label:f.name,sub:`${(f.size/1024).toFixed(0)} KB`,source:"file",data:ev.target.result,fileName:f.name,fileType:f.type});
+      reader.onerror=()=>setFileError(`Could not read "${f.name}".`);
       if(f.type.startsWith("image/"))reader.readAsDataURL(f);else reader.readAsText(f);
     });
   },[addSrc]);
   const selSources=sources.filter(s=>selIds.includes(s.id));
   const manualConn=MANUAL_CONNECTORS.filter(c=>creds[c.id]).length;
+  const textOf=s=>{
+    if(typeof s.data!=="string")return"";
+    if(s.data.startsWith("data:image"))return"[image attached — visual content not extracted]";
+    return s.data.slice(0,200);
+  };
   const buildPrompt=()=>{
     const types=aTypes.map(i=>ANALYSIS_TYPES[i]).join(" x ");
     const hors=aHorizons.map(i=>HORIZONS[i]).join(" + ");
     const dep=aDepth.map(i=>DEPTHS[i]).join(" + ");
-    const srcList=selSources.slice(0,6).map(s=>`[${s.source}] ${s.label}: ${typeof s.data==="string"?s.data.slice(0,200):""}`).join("\n---\n");
+    const srcList=selSources.slice(0,6).map(s=>`[${s.source}] ${s.label}: ${textOf(s)}`).join("\n---\n");
     const webQ=selSources.filter(s=>s.isQuery).map(s=>s.data).slice(0,4).join(", ");
     return `You are DataMind, an expert intelligence analysis platform. Produce a rigorous, data-driven report.
 PARAMETERS: Type: ${types} | Horizon: ${hors} | Depth: ${dep}
@@ -662,6 +702,7 @@ Optimistic / Base / Pessimistic scenarios with probabilities.
 Methodological limits and assumptions.`;
   };
   const launchAnalysis=async()=>{
+    if(loading)return;
     if(!prompt.trim()&&selSources.length===0)return;
     setLoading(true);setReport(null);setTab(5);setLoadStep(0);
     const iv=setInterval(()=>setLoadStep(p=>p<STEPS.length-1?p+1:p),900);
@@ -669,7 +710,7 @@ Methodological limits and assumptions.`;
     try{
       let directText="",structured=null;
       if(responseMode==="direct"||responseMode==="both"){
-        const directPrompt=prompt+(selSources.length?`\n\nContext:\n${selSources.slice(0,4).map(s=>s.data||s.label).join("\n").slice(0,1200)}`:"");
+        const directPrompt=prompt+(selSources.length?`\n\nContext:\n${selSources.slice(0,4).map(s=>textOf(s)||s.label).join("\n").slice(0,1200)}`:"");
         directText=await callClaude(directPrompt,{maxTokens:1500,idleMs:25000});
       }
       if(responseMode==="report"||responseMode==="both"){
@@ -687,7 +728,7 @@ Methodological limits and assumptions.`;
   };
   const TABS=[
     {icon:"🔌",label:"Connectors"},
-    {icon:"🔍",label:"Web & Live",badge:sources.filter(s=>["websearch","newsapi","url"].includes(s.source)).length},
+    {icon:"🔍",label:"Web & Live",badge:sources.filter(s=>["websearch","newsapi","url","scholar"].includes(s.source)).length},
     {icon:"📄",label:"Files",badge:sources.filter(s=>s.source==="file").length},
     {icon:"🔀",label:"Selection",badge:selIds.length},
     {icon:"🧠",label:"Cockpit"},
@@ -752,7 +793,7 @@ Methodological limits and assumptions.`;
                 </div>
               </div>
             )}
-            {tab===1&&<WebLivePanel sources={sources} selIds={selIds} toggleSel={toggleSel} delSrc={delSrc} addSrc={addSrc} creds={creds} webQuery={webQuery} setWebQuery={setWebQuery} collectWeb={collectWeb} urlInput={urlInput} setUrlInput={setUrlInput} addUrl={addUrl} newsQuery={newsQuery} setNewsQuery={setNewsQuery} collectNews={collectNews}/>}
+            {tab===1&&<WebLivePanel sources={sources} selIds={selIds} toggleSel={toggleSel} delSrc={delSrc} addSrc={addSrc} creds={creds} webQuery={webQuery} setWebQuery={setWebQuery} collectWeb={collectWeb} urlInput={urlInput} setUrlInput={setUrlInput} addUrl={addUrl} newsQuery={newsQuery} setNewsQuery={setNewsQuery} collectNews={collectNews} newsError={newsError} scholarQuery={scholarQuery} setScholarQuery={setScholarQuery} collectScholar={collectScholar}/>}
             {tab===2&&(
               <div>
                 <h2 style={{margin:"0 0 16px",fontSize:16,fontWeight:700,color:T.text}}>Local Files</h2>
@@ -763,6 +804,7 @@ Methodological limits and assumptions.`;
                   <div style={{color:T.textD,fontSize:12,marginTop:4}}>CSV · Excel · PDF · PPTX · JSON · Images · Text</div>
                   <input ref={fileRef} type="file" multiple style={{display:"none"}} onChange={handleFiles}/>
                 </div>
+                {fileError&&<div style={{marginBottom:14,fontSize:12,color:T.red}}>{fileError}</div>}
                 <Card style={{padding:12,marginBottom:14}}>
                   <Label style={{marginBottom:8}}>Cloud Storage</Label>
                   <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
@@ -805,7 +847,7 @@ Methodological limits and assumptions.`;
                 }
               </div>
             )}
-            {tab===4&&<CockpitPanel aTypes={aTypes} setATypes={setATypes} aHorizons={aHorizons} setAHorizons={setAHorizons} aDepth={aDepth} setADepth={setADepth} prompt={prompt} setPrompt={setPrompt} selSources={selSources} toggleSel={toggleSel} onLaunch={launchAnalysis} disabled={!prompt.trim()&&selIds.length===0} responseMode={responseMode} setResponseMode={setResponseMode}/>}
+            {tab===4&&<CockpitPanel aTypes={aTypes} setATypes={setATypes} aHorizons={aHorizons} setAHorizons={setAHorizons} aDepth={aDepth} setADepth={setADepth} prompt={prompt} setPrompt={setPrompt} selSources={selSources} toggleSel={toggleSel} onLaunch={launchAnalysis} disabled={loading||(!prompt.trim()&&selIds.length===0)} responseMode={responseMode} setResponseMode={setResponseMode}/>}
             {tab===5&&(
               <div>
                 {loading&&(

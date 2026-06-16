@@ -18,6 +18,20 @@ export default defineConfig(({ mode }) => {
             })
           },
         },
+        // Keeps the NewsAPI key out of the browser/URL: the client sends its
+        // key (entered in the Connectors UI) via the X-Api-Key header, which
+        // is swapped server-side for an env-configured key when present.
+        '/api/newsapi': {
+          target: 'https://newsapi.org',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/newsapi/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const clientKey = req.headers['x-api-key']
+              proxyReq.setHeader('X-Api-Key', env.NEWSAPI_API_KEY || clientKey || '')
+            })
+          },
+        },
       },
     },
   }
