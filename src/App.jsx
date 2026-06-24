@@ -14,8 +14,8 @@ const T = {
   teal:"#0d9488", tealL:"#f0fdfa",
 };
 
-const CLAUDE_MODEL = "claude-sonnet-4-6";
-const CLAUDE_ENDPOINT = "/api/anthropic/v1/messages";
+const MISTRAL_MODEL = "mistral-medium";
+const MISTRAL_ENDPOINT = "/api/mistral/v1/chat/completions";
 const NEWSAPI_ENDPOINT = "/api/newsapi/v2/everything";
 
 // Calls Claude with streaming (avoids idle-timeout: the connection never
@@ -24,7 +24,7 @@ const NEWSAPI_ENDPOINT = "/api/newsapi/v2/everything";
 // a smaller max_tokens budget (faster generation, lower stall risk). A
 // `hardMs` ceiling also bounds the whole call in case tokens keep trickling
 // in slowly forever without ever triggering the idle abort.
-async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 90000, onDelta } = {}) {
+async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs = 90000, onDelta } = {}) {
   const attempt = async (tokens) => {
     const controller = new AbortController();
     let idleTimer;
@@ -37,12 +37,12 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 
     armIdleTimer();
     let res;
     try {
-      res = await fetch(CLAUDE_ENDPOINT, {
+      res = await fetch(MISTRAL_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          model: CLAUDE_MODEL,
+          model: MISTRAL_MODEL,
           max_tokens: tokens,
           stream: true,
           messages: [{ role: "user", content }],
@@ -59,9 +59,9 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 
       clearTimeout(hardTimer);
       const errBody = await res.text().catch(() => "");
       if (res.status === 401 || res.status === 403) {
-        throw new Error("Claude API authentication failed — set a real ANTHROPIC_API_KEY in .env, then restart the dev server (npm run dev).");
+        throw new Error("Mistral API authentication failed — set a real MISTRAL_API_KEY in .env, then restart the dev server (npm run dev).");
       }
-      throw new Error(`Claude API error ${res.status}: ${errBody.slice(0, 200)}`);
+      throw new Error(`Mistral API error ${res.status}: ${errBody.slice(0, 200)}`);
     }
 
     const reader = res.body.getReader();
@@ -112,7 +112,7 @@ async function callClaude(content, { maxTokens = 2000, idleMs = 25000, hardMs = 
 }
 
 const AUTO_CONNECTORS = [
-  {id:"claude",    icon:"🧠", name:"Claude AI — Anthropic",  desc:"Core inference · reasoning · synthesis · deep analysis", color:T.accent},
+  {id:"mistral",    icon:"🧠", name:"Mistral AI",  desc:"Core inference · reasoning · synthesis · deep analysis", color:T.accent},
   {id:"websearch", icon:"🔍", name:"Web Search — Real-time", desc:"Live web retrieval · news · reports · market data",      color:T.cyan},
   {id:"filedoc",   icon:"📄", name:"Document Parser",        desc:"PDF · Excel · CSV · PPTX · JSON · image OCR",            color:T.teal},
   {id:"translate", icon:"🌐", name:"Multilingual Engine",    desc:"FR · EN · AR · ES · ZH — analysis in any language",     color:T.green},
@@ -460,7 +460,7 @@ function CockpitPanel({aTypes,setATypes,aHorizons,setAHorizons,aDepth,setADepth,
     setSynthError("");
     const body=GUIDING_QS.filter(q=>answers[q.id]?.trim()).map(q=>`${q.label}: ${answers[q.id]}`).join("\n");
     try{
-      const text=await callClaude(
+      const text=await callMistral(
         `Senior analyst. From these inputs, generate an optimized analysis prompt (200-300 words) and 3-4 follow-up questions.\n\nINPUTS:\n${body}\n\nSame language as inputs. Format:\n###PROMPT###\n[prompt]\n###FOLLOW_UPS###\n[questions, one per line, "- " prefix]`,
         {maxTokens:1000, idleMs:20000}
       );
@@ -584,7 +584,7 @@ function CockpitPanel({aTypes,setATypes,aHorizons,setAHorizons,aDepth,setADepth,
         <Label color={T.textD} style={{marginBottom:10}}>Output Mode</Label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {[{k:"report",icon:"📊",l:"Structured Report",d:"5-section intelligence report"},
-            {k:"direct",icon:"💬",l:"Direct Claude Response",d:"Conversational raw output"},
+            {k:"direct",icon:"💬",l:"Direct Vibe Response",d:"Conversational raw output"},
             {k:"both",  icon:"⚡",l:"Full Output",d:"Direct + structured report"}
           ].map(m=>{
             const on=responseMode===m.k;
@@ -711,10 +711,10 @@ Methodological limits and assumptions.`;
       let directText="",structured=null;
       if(responseMode==="direct"||responseMode==="both"){
         const directPrompt=prompt+(selSources.length?`\n\nContext:\n${selSources.slice(0,4).map(s=>textOf(s)||s.label).join("\n").slice(0,1200)}`:"");
-        directText=await callClaude(directPrompt,{maxTokens:1500,idleMs:25000});
+        directText=await callMistral(directPrompt,{maxTokens:1500,idleMs:25000});
       }
       if(responseMode==="report"||responseMode==="both"){
-        const text=await callClaude(buildPrompt(),{maxTokens:1500,idleMs:25000});
+        const text=await callMistral(buildPrompt(),{maxTokens:1500,idleMs:25000});
         const parse=tag=>{const m=text.match(new RegExp(`###${tag}###([\\s\\S]*?)(?=###[A-Z_]+###|$)`));return m?m[1].trim():"";};
         structured={summary:parse("EXECUTIVE_SUMMARY"),insights:parse("INSIGHTS"),forecast:parse("FORECAST"),reco:parse("RECOMMENDATIONS"),limits:parse("LIMITS"),raw:text};
       }
@@ -907,7 +907,7 @@ Methodological limits and assumptions.`;
                         )}
                         {(report.responseMode==="direct"||report.responseMode==="both")&&report.directText&&(
                           <div style={{marginBottom:16}}>
-                            {report.responseMode==="both"&&<Divider label="Direct Claude Response"/>}
+                            {report.responseMode==="both"&&<Divider label="Direct Vibe Response"/>}
                             <Card accent={T.accent} style={{padding:"16px 18px",fontSize:13.5,lineHeight:1.9,color:T.textM,whiteSpace:"pre-wrap"}}>{report.directText}</Card>
                           </div>
                         )}
