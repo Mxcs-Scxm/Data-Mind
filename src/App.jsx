@@ -37,9 +37,12 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      res = await fetch(MISTRAL_ENDPOINT, {
+      res = await fetch(`${process.env.REACT_APP_MISTRAL_API_URL}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`
+        },
         signal: controller.signal,
         body: JSON.stringify({
           model: MISTRAL_MODEL,
@@ -83,8 +86,8 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
           if (!data || data === "[DONE]") continue;
           try {
             const evt = JSON.parse(data);
-            if (evt.type === "content_block_delta" && evt.delta?.text) {
-              full += evt.delta.text;
+            if (evt.choices?.[0]?.delta?.content) {
+              full += evt.choices[0].delta.content;
               onDelta?.(full);
             }
           } catch {
@@ -98,6 +101,16 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     }
     return full;
   };
+
+  try {
+    return await attempt(maxTokens);
+  } catch (err) {
+    const isAbort = err.name === "AbortError";
+    if (!isAbort) throw err;
+    const reducedTokens = Math.max(400, Math.floor(maxTokens * 0.5));
+    return await attempt(reducedTokens);
+  }
+}
 
   try {
     return await attempt(maxTokens);
