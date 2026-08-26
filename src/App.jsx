@@ -15,7 +15,7 @@ const T = {
 };
 
 const MISTRAL_MODEL = "mistral-medium";
-const MISTRAL_ENDPOINT = "/api/mistral/v1/chat/completions";
+const MISTRAL_ENDPOINT = `${process.env.REACT_APP_MISTRAL_API_URL}/chat/completions`;
 const NEWSAPI_ENDPOINT = "/api/newsapi/v2/everything";
 
 // Calls Claude with streaming (avoids idle-timeout: the connection never
