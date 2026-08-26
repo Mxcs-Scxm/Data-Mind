@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 
+// ✅ DEBUG : Vérifie que les variables sont chargées
+console.log('🔴 VITE_MISTRAL_API_URL:', import.meta.env.VITE_MISTRAL_API_URL);
+console.log('🔴 VITE_MISTRAL_API_KEY:', import.meta.env.VITE_MISTRAL_API_KEY ? '✅ (masquée)' : '❌ MANQUANTE');
+
 const T = {
   bg:"#f4f6fa", surface:"#ffffff", surfaceL:"#f8f9fc",
   border:"#e3e8ef", borderD:"#d0d7e3",
@@ -30,12 +34,12 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      // ✅ CORRIGÉ : process.env pour CRA (pas import.meta.env)
-      res = await fetch(`${process.env.REACT_APP_MISTRAL_API_URL}/chat/completions`, {
+      // ✅ CORRIGÉ : import.meta.env pour Vite
+      res = await fetch(`${import.meta.env.VITE_MISTRAL_API_URL}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`
+          "Authorization": `Bearer ${import.meta.env.VITE_MISTRAL_API_KEY}`
         },
         signal: controller.signal,
         body: JSON.stringify({
