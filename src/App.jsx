@@ -15,7 +15,7 @@ const T = {
 };
 
 const MISTRAL_MODEL = "mistral-medium";
-const NEWSAPI_ENDPOINT = "https://newsapi.org/v2/everything";  // ✅ URL absolue
+const NEWSAPI_ENDPOINT = "https://newsapi.org/v2/everything";
 
 async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs = 90000, onDelta } = {}) {
   const attempt = async (tokens) => {
@@ -30,13 +30,12 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      // ✅ CORRECTION 1 : Utilise import.meta.env.VITE_* (Vite)
-      res = await fetch(`${import.meta.env.VITE_MISTRAL_API_URL}/chat/completions`, {
+      // ✅ CORRIGÉ : process.env pour CRA (pas import.meta.env)
+      res = await fetch(`${process.env.REACT_APP_MISTRAL_API_URL}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // ✅ CORRECTION 2 : Authentification avec VITE_
-          "Authorization": `Bearer ${import.meta.env.VITE_MISTRAL_API_KEY}`
+          "Authorization": `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -81,7 +80,6 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
           if (!data || data === "[DONE]") continue;
           try {
             const evt = JSON.parse(data);
-            // ✅ CORRECTION 3 : Format Mistral (choices[0].delta.content)
             if (evt.choices?.[0]?.delta?.content) {
               full += evt.choices[0].delta.content;
               onDelta?.(full);
