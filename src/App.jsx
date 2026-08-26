@@ -15,7 +15,6 @@ const T = {
 };
 
 const MISTRAL_MODEL = "mistral-medium";
-// ✅ CORRIGÉ : Utilise directement process.env dans la fonction callMistral
 const NEWSAPI_ENDPOINT = "https://newsapi.org/v2/everything";
 
 async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs = 90000, onDelta } = {}) {
@@ -31,11 +30,11 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      res = await fetch(`${process.env.REACT_APP_MISTRAL_API_URL}/chat/completions`, {
+      res = await fetch(`${import.meta.env.VITE_MISTRAL_API_URL}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`
+          "Authorization": `Bearer ${import.meta.env.VITE_MISTRAL_API_KEY}`
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -112,8 +111,3 @@ const AUTO_CONNECTORS = [
   {id:"filedoc",   icon:"📄", name:"Document Parser",        desc:"PDF · Excel · CSV · PPTX · JSON · image OCR",            color:T.teal},
   {id:"translate", icon:"🌐", name:"Multilingual Engine",    desc:"FR · EN · AR · ES · ZH — analysis in any language",     color:T.green},
 ];
-const MANUAL_CONNECTORS = [
-  {id:"newsapi",   icon:"📰", name:"NewsAPI",       cat:"News",     color:T.amber,   desc:"150,000+ global news sources", fields:[{k:"apiKey",l:"API Key",p:"newsapi.org key",t:"password"}], link:"https://newsapi.org"},
-  {id:"instagram", icon:"📸", name:"Instagram",     cat:"Social",   color:"#e1306c", desc:"Meta Graph API · Business",    fields:[{k:"token",l:"Access Token",p:"Meta Graph API Token",t:"password"},{k:"accountId",l:"Account ID",p:"Business ID",t:"text"}], link:"https://developers.facebook.com"},
-  {id:"twitter",   icon:"🐦", name:"X / Twitter",   cat:"Social",   color:"#1d9bf0", desc:"Twitter API v2 · analytics",   fields:[{k:"bearer",l:"Bearer Token",p:"Twitter API v2 bearer",t:"password"}], link:"https://developer.twitter.com"},
-  {id:"linkedin",  icon:"💼", name:"LinkedIn",       cat:"Social",   color:"#0a66c2", desc:"Posts · analytics · company",  fields:[{k:"token",l:"Access Token",p:"LinkedIn OAuth token",t:"password"},{k:"orgId",l:"Org ID",p:"Organization ID",t:"text"}], link:"https://developer
