@@ -149,66 +149,199 @@ const OUTLETS = [
 const OUTLET_CATS = ["INT","FR","UK","USA","DE","ES","IT","RU","CN","JP","IN","ME","LATAM","AU","CA"];
 const SRC_COLORS = {websearch:T.cyan, newsapi:T.amber, instagram:"#e1306c", twitter:"#1d9bf0", linkedin:"#0a66c2", file:T.teal, url:T.purple, scholar:T.purple};
 
-const Label = ({children, color=T.textD, style={}}) => (
-  <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color,...style}}>{children}</div>
+// ✅ CORRECTION : Syntaxe corrigée pour Card (le problème était ici)
+const Card = ({children, accent, style = {}}) => (
+  <div style={{
+    background: T.surface,
+    borderRadius: 8,
+    border: `1.5px solid ${T.border}`,
+    padding: 16,
+    borderLeft: accent ? `3px solid ${accent}` : `1.5px solid ${T.border}`,
+    ...style
+  }}>
+    {children}
+  </div>
 );
 
-const Tag = ({label, color=T.primary, onRemove, xs}) => (
-  <span style={{display:"inline-flex",alignItems:"center",gap:3,background:`${color}14`,color,border:`1px solid ${color}30`,borderRadius:4,padding:xs?"2px 7px":"3px 10px",fontSize:xs?10:11,fontWeight:600,whiteSpace:"nowrap"}}>
-    {label}{onRemove&&<button onClick={onRemove} style={{background:"none",border:"none",color,cursor:"pointer",fontSize:12,padding:0,lineHeight:1,marginLeft:2,opacity:.6}}>x</button>}
+const Label = ({children, color = T.textD, style = {}}) => (
+  <div style={{fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color, ...style}}>
+    {children}
+  </div>
+);
+
+const Tag = ({label, color = T.primary, onRemove, xs}) => (
+  <span style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
+    background: `${color}14`,
+    color,
+    border: `1px solid ${color}30`,
+    borderRadius: 4,
+    padding: xs ? "2px 7px" : "3px 10px",
+    fontSize: xs ? 10 : 11,
+    fontWeight: 600,
+    whiteSpace: "nowrap"
+  }}>
+    {label}
+    {onRemove && (
+      <button
+        onClick={onRemove}
+        style={{
+          background: "none",
+          border: "none",
+          color,
+          cursor: "pointer",
+          fontSize: 12,
+          padding: 0,
+          lineHeight: 1,
+          marginLeft: 2,
+          opacity: 0.6
+        }}
+      >
+        x
+      </button>
+    )}
   </span>
 );
 
-const Dot = ({color=T.green,pulse}) => (
-  <span style={{position:"relative",display:"inline-flex",width:8,height:8,alignItems:"center",justifyContent:"center"}}>
-    <span style={{width:8,height:8,borderRadius:"50%",background:color,display:"block"}}/>
-    {pulse&&<span style={{position:"absolute",width:14,height:14,borderRadius:"50%",border:`1.5px solid ${color}`,animation:"ping 2s infinite",opacity:.3}}/>}
+const Dot = ({color = T.green, pulse}) => (
+  <span style={{position: "relative", display: "inline-flex", width: 8, height: 8, alignItems: "center", justifyContent: "center"}}>
+    <span style={{width: 8, height: 8, borderRadius: "50%", background: color, display: "block"}}/>
+    {pulse && (
+      <span style={{
+        position: "absolute",
+        width: 14,
+        height: 14,
+        borderRadius: "50%",
+        border: `1.5px solid ${color}`,
+        animation: "ping 2s infinite",
+        opacity: 0.3
+      }}/>
+    )}
   </span>
 );
 
 const Divider = ({label}) => (
-  <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0 14px"}}>
-    <div style={{flex:1,height:1,background:T.border}}/>
-    {label&&<Label>{label}</Label>}
-    <div style={{flex:1,height:1,background:T.border}}/>
+  <div style={{display: "flex", alignItems: "center", gap: 12, margin: "20px 0 14px"}}>
+    <div style={{flex: 1, height: 1, background: T.border}}/>
+    {label && <Label>{label}</Label>}
+    <div style={{flex: 1, height: 1, background: T.border}}/>
   </div>
 );
 
-const Btn = ({onClick,disabled,children,variant="primary",small,full,style={}}) => {
-  const base={border:"none",borderRadius:6,fontWeight:600,cursor:disabled?"not-allowed":"pointer",fontFamily:"inherit",transition:"all .15s",fontSize:small?12:13,...style};
-  const pad=small?"6px 14px":"10px 20px";
-  if(variant==="primary") return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,width:full?"100%":"auto",background:disabled?"#e5e7eb":T.primaryG,color:disabled?T.textL:"#fff",boxShadow:disabled?"none":"0 1px 8px #2563eb25"}}>{children}</button>;
-  if(variant==="ghost") return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:"transparent",color:T.textD,border:`1.5px solid ${T.border}`}}>{children}</button>;
-  if(variant==="accent") return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:T.accent,color:"#fff",boxShadow:"0 1px 8px #4f46e525"}}>{children}</button>;
-  return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:T.surfaceL,color:T.textM,border:`1px solid ${T.border}`}}>{children}</button>;
+const Btn = ({onClick, disabled, children, variant = "primary", small, full, style = {}}) => {
+  const base = {
+    border: "none",
+    borderRadius: 6,
+    fontWeight: 600,
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+    transition: "all .15s",
+    fontSize: small ? 12 : 13,
+    ...style
+  };
+  const pad = small ? "6px 14px" : "10px 20px";
+
+  if (variant === "primary") return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...base,
+      padding: pad,
+      width: full ? "100%" : "auto",
+      background: disabled ? "#e5e7eb" : T.primaryG,
+      color: disabled ? T.textL : "#fff",
+      boxShadow: disabled ? "none" : "0 1px 8px #2563eb25"
+    }}>
+      {children}
+    </button>
+  );
+
+  if (variant === "ghost") return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...base,
+      padding: pad,
+      background: "transparent",
+      color: T.textD,
+      border: `1.5px solid ${T.border}`
+    }}>
+      {children}
+    </button>
+  );
+
+  if (variant === "accent") return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...base,
+      padding: pad,
+      background: T.accent,
+      color: "#fff",
+      boxShadow: "0 1px 8px #4f46e525"
+    }}>
+      {children}
+    </button>
+  );
+
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...base,
+      padding: pad,
+      background: T.surfaceL,
+      color: T.textM,
+      border: `1px solid ${T.border}`
+    }}>
+      {children}
+    </button>
+  );
 };
 
-const Input = ({value,onChange,placeholder,type="text",onEnter}) => (
-  <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type}
-    onKeyDown={e=>e.key==="Enter"&&onEnter&&onEnter()}
-    style={{width:"100%",padding:"9px 12px",borderRadius:6,border:`1.5px solid ${T.border}`,background:T.surface,fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",color:T.text}}/>
+const Input = ({value, onChange, placeholder, type = "text", onEnter}) => (
+  <input
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    placeholder={placeholder}
+    type={type}
+    onKeyDown={e => e.key === "Enter" && onEnter && onEnter()}
+    style={{
+      width: "100%",
+      padding: "9px 12px",
+      borderRadius: 6,
+      border: `1.5px solid ${T.border}`,
+      background: T.surface,
+      fontSize: 13,
+      outline: "none",
+      fontFamily: "inherit",
+      boxSizing: "border-box",
+      color: T.text
+    }}
+  />
 );
 
-const Toggle = ({options,selected,onToggle,color=T.primary,single}) => (
-  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-    {options.map((o,i)=>{
-      const on=selected.includes(i);
+const Toggle = ({options, selected, onToggle, color = T.primary, single}) => (
+  <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+    {options.map((o, i) => {
+      const on = selected.includes(i);
       return (
         <button
           key={i}
-          onClick={()=>{if(single){onToggle([i]);}else{onToggle(on&&selected.length>1?selected.filter(x=>x!==i):[...selected.filter(x=>x!==i),i]);}}}
+          onClick={() => {
+            if (single) {
+              onToggle([i]);
+            } else {
+              onToggle(on && selected.length > 1 ? selected.filter(x => x !== i) : [...selected.filter(x => x !== i), i]);
+            }
+          }}
           style={{
-            padding:"5px 13px",
-            borderRadius:20,
-            border:`1.5px solid ${on?color:T.border}`,
-            background:on?color:T.surface,
-            color:on?"#fff":T.textM,
-            cursor:"pointer",
-            fontSize:12,
-            fontWeight:600,
-            fontFamily:"inherit",
-            transition:"all .12s"
-          }}>
+            padding: "5px 13px",
+            borderRadius: 20,
+            border: `1.5px solid ${on ? color : T.border}`,
+            background: on ? color : T.surface,
+            color: on ? "#fff" : T.textM,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: "inherit",
+            transition: "all .12s"
+          }}
+        >
           {o}
         </button>
       );
@@ -216,21 +349,37 @@ const Toggle = ({options,selected,onToggle,color=T.primary,single}) => (
   </div>
 );
 
-const Card = ({children,accent,style={}}) => (
-  <div style={{background:T.surface,borderRadius:8,border:`1.5px solid ${T.border}`,padding:16,borderLeft:accent?`3px solid ${accent}`:"1.5px solid "+T.border,...style}}>{children}</div>
-);
-
-const SectionBlock = ({icon,title,color,children,open:defOpen=true}) => {
-  const [open,setOpen]=useState(defOpen);
+const SectionBlock = ({icon, title, color, children, open: defOpen = true}) => {
+  const [open, setOpen] = useState(defOpen);
   return (
-    <div style={{marginBottom:10,borderRadius:8,border:`1.5px solid ${T.border}`,overflow:"hidden"}}>
-      <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",background:T.surfaceL,cursor:"pointer",userSelect:"none",borderLeft:`3px solid ${color}`}}>
-        <span style={{fontSize:15}}>{icon}</span>
-        <span style={{fontWeight:700,color:T.text,fontSize:13,flex:1}}>{title}</span>
-        <span style={{color:T.textL,fontSize:10,fontWeight:600}}>{open?"▲ Collapse":"▼ Expand"}</span>
+    <div style={{marginBottom: 10, borderRadius: 8, border: `1.5px solid ${T.border}`, overflow: "hidden"}}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "11px 16px",
+          background: T.surfaceL,
+          cursor: "pointer",
+          userSelect: "none",
+          borderLeft: `3px solid ${color}`
+        }}
+      >
+        <span style={{fontSize: 15}}>{icon}</span>
+        <span style={{fontWeight: 700, color: T.text, fontSize: 13, flex: 1}}>{title}</span>
+        <span style={{color: T.textL, fontSize: 10, fontWeight: 600}}>{open ? "▲ Collapse" : "▼ Expand"}</span>
       </div>
-      {open&&(
-        <div style={{padding:"16px 18px",background:T.surface,fontSize:13.5,lineHeight:1.85,color:T.textM,whiteSpace:"pre-wrap",borderLeft:`3px solid ${color}20`}}>
+      {open && (
+        <div style={{
+          padding: "16px 18px",
+          background: T.surface,
+          fontSize: 13.5,
+          lineHeight: 1.85,
+          color: T.textM,
+          whiteSpace: "pre-wrap",
+          borderLeft: `3px solid ${color}20`
+        }}>
           {children}
         </div>
       )}
@@ -238,7 +387,7 @@ const SectionBlock = ({icon,title,color,children,open:defOpen=true}) => {
   );
 };
 
-// ✅✅✅ COMPOSANT PRINCIPAL APP (À AJOUTER !)
+// ✅ COMPOSANT PRINCIPAL APP
 export default function App() {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
@@ -263,12 +412,20 @@ export default function App() {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"Inter,system-ui,sans-serif",padding:24}}>
-      <div style={{maxWidth:800,margin:"0 auto"}}>
-        <h1 style={{fontSize:28,fontWeight:800,marginBottom:24}}>DataMind — Intelligence Analytics Platform</h1>
+    <div style={{
+      minHeight: "100vh",
+      background: T.bg,
+      color: T.text,
+      fontFamily: "Inter, system-ui, sans-serif",
+      padding: 24
+    }}>
+      <div style={{maxWidth: 800, margin: "0 auto"}}>
+        <h1 style={{fontSize: 28, fontWeight: 800, marginBottom: 24}}>
+          DataMind — Intelligence Analytics Platform
+        </h1>
 
         <Card>
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
             <Input
               value={prompt}
               onChange={setPrompt}
@@ -283,14 +440,14 @@ export default function App() {
         </Card>
 
         {error && (
-          <Card accent={T.red} style={{marginTop:16}}>
-            <div style={{color:T.red,fontWeight:600}}>❌ Erreur : {error}</div>
+          <Card accent={T.red} style={{marginTop: 16}}>
+            <div style={{color: T.red, fontWeight: 600}}>❌ Erreur : {error}</div>
           </Card>
         )}
 
         {response && (
-          <Card style={{marginTop:16}}>
-            <div style={{whiteSpace:"pre-wrap"}}>{response}</div>
+          <Card style={{marginTop: 16}}>
+            <div style={{whiteSpace: "pre-wrap"}}>{response}</div>
           </Card>
         )}
       </div>
