@@ -30,12 +30,10 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      // ✅✅✅ CORRECTION : Utilise le proxy /api/mistral
       res = await fetch(`/api/mistral/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // ✅ Plus besoin de Bearer ici, le proxy l'ajoute !
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -212,3 +210,16 @@ const SectionBlock = ({icon,title,color,children,open:defOpen=true}) => {
         <span style={{fontSize:15}}>{icon}</span>
         <span style={{fontWeight:700,color:T.text,fontSize:13,flex:1}}>{title}</span>
         <span style={{color:T.textL,fontSize:10,fontWeight:600}}>{open?"▲ Collapse":"▼ Expand"}</span>
+      </div>
+      {open&&<div style={{padding:"16px 18px",background:T.surface,fontSize:13.5,lineHeight:1.85,color:T.textM,whiteSpace:"pre-wrap",borderLeft:`3px solid ${color}20`}}>{children}</div>}
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"Inter,system-ui,sans-serif"}}>
+      <h1>DataMind — Intelligence Analytics Platform</h1>
+    </div>
+  );
+}
