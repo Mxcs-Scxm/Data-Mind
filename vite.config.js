@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
-  // Charge les variables d'environnement
   const env = loadEnv(mode, process.cwd(), '')
 
   // Vérification des clés API
@@ -24,10 +23,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      // Port par défaut de Vite (5173)
-      port: 5173,
       proxy: {
-        // Proxy existant pour Anthropic (à garder)
+        // Proxy pour Anthropic (déjà présent)
         '/api/anthropic': {
           target: 'https://api.anthropic.com',
           changeOrigin: true,
@@ -39,7 +36,7 @@ export default defineConfig(({ mode }) => {
             })
           },
         },
-        // Proxy existant pour NewsAPI (à garder)
+        // Proxy pour NewsAPI (déjà présent)
         '/api/newsapi': {
           target: 'https://newsapi.org',
           changeOrigin: true,
@@ -51,14 +48,13 @@ export default defineConfig(({ mode }) => {
             })
           },
         },
-        // ✅✅✅ NOUVEAU PROXY POUR MISTRAL (À AJOUTER)
+        // ✅✅✅ PROXY POUR MISTRAL (À AJOUTER !)
         '/api/mistral': {
           target: 'https://api.mistral.ai',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/mistral/, ''),
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
-              // Ajoute le token Bearer dans l'en-tête Authorization
               proxyReq.setHeader('Authorization', `Bearer ${env.MISTRAL_API_KEY || ''}`)
             })
           },
