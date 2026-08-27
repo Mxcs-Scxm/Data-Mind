@@ -1,13 +1,12 @@
 import { useState, useRef, useCallback } from "react";
 
-// ✅ DEBUG : Vérifie le chargement des variables
-console.log('🔴 [DEBUG] import.meta.env:', import.meta.env);
-console.log('🔴 [DEBUG] VITE_MISTRAL_API_URL:', import.meta.env.VITE_MISTRAL_API_URL);
-console.log('🔴 [DEBUG] VITE_MISTRAL_API_KEY:', import.meta.env.VITE_MISTRAL_API_KEY ? '✅ (masquée)' : '❌ MANQUANTE');
+// ✅ DEBUG : Vérifie le chargement des variables (optionnel, peut être supprimé après test)
+console.log('🔴 [ENV] import.meta.env:', import.meta.env);
+console.log('🔴 [ENV] MISTRAL_API_KEY:', import.meta.env.MISTRAL_API_KEY ? '✅' : '❌');
 
-// ✅ FALLBACK : Si Vite ne charge pas le .env, utilise les valeurs directes
-const MISTRAL_API_URL = import.meta.env.VITE_MISTRAL_API_URL || "https://api.mistral.ai/v1";
-const MISTRAL_API_KEY = import.meta.env.VITE_MISTRAL_API_KEY || "yIdnqotpuw7aYdlQayHtIKBbXrkFORR5";
+// ✅ Constantes pour fallback (optionnel, peut être supprimé après test)
+const MISTRAL_API_URL = import.meta.env.MISTRAL_API_KEY ? "https://api.mistral.ai/v1" : null;
+const MISTRAL_API_KEY = import.meta.env.MISTRAL_API_KEY;
 
 const T = {
   bg:"#f4f6fa", surface:"#ffffff", surfaceL:"#f8f9fc",
@@ -39,12 +38,12 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
     armIdleTimer();
     let res;
     try {
-      // ✅ Utilise les constantes avec fallback
-      res = await fetch(`${MISTRAL_API_URL}/chat/completions`, {
+      // ✅✅✅ CORRECTION PRINCIPALE : Utilise le proxy /api/mistral au lieu de l'URL directe
+      res = await fetch(`/api/mistral/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${MISTRAL_API_KEY}`
+          // ✅ Plus besoin de Bearer ici, le proxy l'ajoute automatiquement !
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -65,7 +64,7 @@ async function callMistral(content, { maxTokens = 2000, idleMs = 25000, hardMs =
       clearTimeout(hardTimer);
       const errBody = await res.text().catch(() => "");
       if (res.status === 401 || res.status === 403) {
-        throw new Error("❌ Erreur d'authentification Mistral : vérifie ta clé API dans .env ou .env.local");
+        throw new Error("❌ Erreur d'authentification Mistral : vérifie ta clé API dans .env");
       }
       throw new Error(`❌ Erreur Mistral ${res.status}: ${errBody.slice(0, 200)}`);
     }
@@ -155,4 +154,168 @@ const OUTLETS = [
   {id:"foreignaff",  name:"Foreign Affairs",       icon:"🌐", domain:"foreignaffairs.com",           cat:"INT"},
   {id:"lemonde",     name:"Le Monde",              icon:"🇫🇷", domain:"lemonde.fr",                  cat:"FR"},
   {id:"lefigaro",    name:"Le Figaro",             icon:"🇫🇷", domain:"lefigaro.fr",                 cat:"FR"},
-  {id:"lesechos",   
+  {id:"lesechos",    name:"Les Echos",             icon:"🇫🇷", domain:"lesechos.fr",                 cat:"FR"},
+  {id:"liberation",  name:"Liberation",            icon:"🇫🇷", domain:"liberation.fr",               cat:"FR"},
+  {id:"bfmtv",       name:"BFM TV",                icon:"🇫🇷", domain:"bfmtv.com",                   cat:"FR"},
+  {id:"mediapart",   name:"Mediapart",             icon:"🇫🇷", domain:"mediapart.fr",                cat:"FR"},
+  {id:"lemondediplo",name:"Le Monde Diplo",        icon:"🇫🇷", domain:"monde-diplomatique.fr",       cat:"FR"},
+  {id:"bbc",         name:"BBC",                   icon:"🇬🇧", domain:"bbc.co.uk",                   cat:"UK"},
+  {id:"guardian",    name:"The Guardian",          icon:"🇬🇧", domain:"theguardian.com",             cat:"UK"},
+  {id:"thetimes",    name:"The Times",             icon:"🇬🇧", domain:"thetimes.co.uk",              cat:"UK"},
+  {id:"telegraph",   name:"The Telegraph",         icon:"🇬🇧", domain:"telegraph.co.uk",             cat:"UK"},
+  {id:"nytimes",     name:"NY Times",              icon:"🇺🇸", domain:"nytimes.com",                 cat:"USA"},
+  {id:"wsj",         name:"Wall Street Journal",   icon:"🇺🇸", domain:"wsj.com",                     cat:"USA"},
+  {id:"washpost",    name:"Washington Post",       icon:"🇺🇸", domain:"washingtonpost.com",          cat:"USA"},
+  {id:"cnn",         name:"CNN",                   icon:"🇺🇸", domain:"cnn.com",                     cat:"USA"},
+  {id:"politico",    name:"Politico",              icon:"🇺🇸", domain:"politico.com",                cat:"USA"},
+  {id:"axios",       name:"Axios",                 icon:"🇺🇸", domain:"axios.com",                   cat:"USA"},
+  {id:"spiegel",     name:"Der Spiegel",           icon:"🇩🇪", domain:"spiegel.de",                  cat:"DE"},
+  {id:"faz",         name:"Frankfurter Allgemeine",icon:"🇩🇪", domain:"faz.net",                     cat:"DE"},
+  {id:"dw",          name:"Deutsche Welle",        icon:"🇩🇪", domain:"dw.com",                      cat:"DE"},
+  {id:"elpais",      name:"El Pais",               icon:"🇪🇸", domain:"elpais.com",                  cat:"ES"},
+  {id:"elmundo",     name:"El Mundo",              icon:"🇪🇸", domain:"elmundo.es",                  cat:"ES"},
+  {id:"corriere",    name:"Corriere della Sera",   icon:"🇮🇹", domain:"corriere.it",                 cat:"IT"},
+  {id:"repubblica",  name:"La Repubblica",         icon:"🇮🇹", domain:"repubblica.it",               cat:"IT"},
+  {id:"rt",          name:"RT",                    icon:"🇷🇺", domain:"rt.com",                      cat:"RU"},
+  {id:"tass",        name:"TASS",                  icon:"🇷🇺", domain:"tass.com",                    cat:"RU"},
+  {id:"xinhua",      name:"Xinhua",                icon:"🇨🇳", domain:"xinhuanet.com",               cat:"CN"},
+  {id:"scmp",        name:"S. China Morning Post", icon:"🇨🇳", domain:"scmp.com",                    cat:"CN"},
+  {id:"nhk",         name:"NHK World",             icon:"🇯🇵", domain:"nhk.or.jp",                   cat:"JP"},
+  {id:"nikkei",      name:"Nikkei Asia",           icon:"🇯🇵", domain:"asia.nikkei.com",             cat:"JP"},
+  {id:"thehindu",    name:"The Hindu",             icon:"🇮🇳", domain:"thehindu.com",                cat:"IN"},
+  {id:"ndtv",        name:"NDTV",                  icon:"🇮🇳", domain:"ndtv.com",                    cat:"IN"},
+  {id:"aljazeera",   name:"Al Jazeera",            icon:"🌍", domain:"aljazeera.com",                cat:"ME"},
+  {id:"alarabiya",   name:"Al Arabiya",            icon:"🌍", domain:"english.alarabiya.net",        cat:"ME"},
+  {id:"haaretz",     name:"Haaretz",               icon:"🇮🇱", domain:"haaretz.com",                 cat:"ME"},
+  {id:"folha",       name:"Folha de S.Paulo",      icon:"🇧🇷", domain:"folha.uol.com.br",            cat:"LATAM"},
+  {id:"smh",         name:"Sydney Morning Herald", icon:"🇦🇺", domain:"smh.com.au",                  cat:"AU"},
+  {id:"cbc",         name:"CBC",                   icon:"🇨🇦", domain:"cbc.ca",                      cat:"CA"},
+];
+const OUTLET_CATS = ["INT","FR","UK","USA","DE","ES","IT","RU","CN","JP","IN","ME","LATAM","AU","CA"];
+const SRC_COLORS = {websearch:T.cyan, newsapi:T.amber, instagram:"#e1306c", twitter:"#1d9bf0", linkedin:"#0a66c2", file:T.teal, url:T.purple, scholar:T.purple};
+
+const Label = ({children, color=T.textD, style={}}) => (
+  <div style={{fontSize:10.5,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color,...style}}>{children}</div>
+);
+const Tag = ({label, color=T.primary, onRemove, xs}) => (
+  <span style={{display:"inline-flex",alignItems:"center",gap:3,background:`${color}14`,color,border:`1px solid ${color}30`,borderRadius:4,padding:xs?"2px 7px":"3px 10px",fontSize:xs?10:11,fontWeight:600,whiteSpace:"nowrap"}}>
+    {label}{onRemove&&<button onClick={onRemove} style={{background:"none",border:"none",color,cursor:"pointer",fontSize:12,padding:0,lineHeight:1,marginLeft:2,opacity:.6}}>x</button>}
+  </span>
+);
+const Dot = ({color=T.green,pulse}) => (
+  <span style={{position:"relative",display:"inline-flex",width:8,height:8,alignItems:"center",justifyContent:"center"}}>
+    <span style={{width:8,height:8,borderRadius:"50%",background:color,display:"block"}}/>
+    {pulse&&<span style={{position:"absolute",width:14,height:14,borderRadius:"50%",border:`1.5px solid ${color}`,animation:"ping 2s infinite",opacity:.3}}/>}
+  </span>
+);
+const Divider = ({label}) => (
+  <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0 14px"}}>
+    <div style={{flex:1,height:1,background:T.border}}/>
+    {label&&<Label>{label}</Label>}
+    <div style={{flex:1,height:1,background:T.border}}/>
+  </div>
+);
+const Btn = ({onClick,disabled,children,variant="primary",small,full,style={}}) => {
+  const base={border:"none",borderRadius:6,fontWeight:600,cursor:disabled?"not-allowed":"pointer",fontFamily:"inherit",transition:"all .15s",fontSize:small?12:13,...style};
+  const pad=small?"6px 14px":"10px 20px";
+  if(variant==="primary") return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,width:full?"100%":"auto",background:disabled?"#e5e7eb":T.primaryG,color:disabled?T.textL:"#fff",boxShadow:disabled?"none":"0 1px 8px #2563eb25"}}>{children}</button>;
+  if(variant==="ghost")   return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:"transparent",color:T.textD,border:`1.5px solid ${T.border}`}}>{children}</button>;
+  if(variant==="accent")  return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:T.accent,color:"#fff",boxShadow:"0 1px 8px #4f46e525"}}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{...base,padding:pad,background:T.surfaceL,color:T.textM,border:`1px solid ${T.border}`}}>{children}</button>;
+};
+const Input = ({value,onChange,placeholder,type="text",onEnter}) => (
+  <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type}
+    onKeyDown={e=>e.key==="Enter"&&onEnter&&onEnter()}
+    style={{width:"100%",padding:"9px 12px",borderRadius:6,border:`1.5px solid ${T.border}`,background:T.surface,fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box",color:T.text}}/>
+);
+const Toggle = ({options,selected,onToggle,color=T.primary,single}) => (
+  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+    {options.map((o,i)=>{
+      const on=selected.includes(i);
+      return <button key={i} onClick={()=>{if(single){onToggle([i]);}else{onToggle(on&&selected.length>1?selected.filter(x=>x!==i):[...selected.filter(x=>x!==i),i]);}}}
+        style={{padding:"5px 13px",borderRadius:20,border:`1.5px solid ${on?color:T.border}`,background:on?color:T.surface,color:on?"#fff":T.textM,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"all .12s"}}>
+        {o}
+      </button>;
+    })}
+  </div>
+);
+const Card = ({children,accent,style={}}) => (
+  <div style={{background:T.surface,borderRadius:8,border:`1.5px solid ${T.border}`,padding:16,borderLeft:accent?`3px solid ${accent}`:"1.5px solid "+T.border,...style}}>{children}</div>
+);
+const SectionBlock = ({icon,title,color,children,open:defOpen=true}) => {
+  const [open,setOpen]=useState(defOpen);
+  return (
+    <div style={{marginBottom:10,borderRadius:8,border:`1.5px solid ${T.border}`,overflow:"hidden"}}>
+      <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",background:T.surfaceL,cursor:"pointer",userSelect:"none",borderLeft:`3px solid ${color}`}}>
+        <span style={{fontSize:15}}>{icon}</span>
+        <span style={{fontWeight:700,color:T.text,fontSize:13,flex:1}}>{title}</span>
+        <span style={{color:T.textL,fontSize:10,fontWeight:600}}>{open?"▲ Collapse":"▼ Expand"}</span>
+      </div>
+      {open&&<div style={{padding:"16px 18px",background:T.surface,fontSize:13.5,lineHeight:1.85,color:T.textM,whiteSpace:"pre-wrap",borderLeft:`3px solid ${color}20`}}>{children}</div>}
+    </div>
+  );
+};
+function ColSection({icon,title,badge,badgeColor=T.primary,children}) {
+  const [open,setOpen]=useState(false);
+  return (
+    <div style={{marginBottom:10,borderRadius:8,border:`1.5px solid ${open?"#93c5fd":T.border}`,overflow:"hidden"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:open?"#eff6ff":"#fff"}}>
+        <span style={{fontSize:20}}>{icon}</span>
+        <span style={{flex:1,fontWeight:700,fontSize:13.5,color:"#111827"}}>{title}</span>
+        {badge>0&&<span style={{background:badgeColor,color:"#fff",borderRadius:12,padding:"2px 9px",fontSize:11,fontWeight:700}}>{badge}</span>}
+        <button onClick={()=>setOpen(o=>!o)}
+          style={{minWidth:86,padding:"6px 14px",borderRadius:6,border:"2px solid #2563eb",background:open?"#2563eb":"#fff",color:open?"#fff":"#2563eb",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          {open?"▲ Close":"▼ Open"}
+        </button>
+      </div>
+      {open&&<div style={{padding:"16px",background:"#fff",borderTop:"1px solid #e3e8ef"}}>{children}</div>}
+    </div>
+  );
+}
+function ConnectorCard({conn,saved,onSave,onDel}) {
+  const [open,setOpen]=useState(false);
+  const [vals,setVals]=useState(saved||{});
+  const ok=!!saved;
+  return (
+    <div style={{border:`1.5px solid ${ok?conn.color+"50":T.border}`,borderRadius:8,overflow:"hidden",borderLeft:`3px solid ${ok?conn.color:T.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",background:T.surface}}>
+        <span style={{fontSize:20}}>{conn.icon}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:2}}>
+            <span style={{fontWeight:700,fontSize:13,color:T.text}}>{conn.name}</span>
+            <Tag label={conn.cat} color={conn.color} xs/>
+          </div>
+          <div style={{fontSize:11.5,color:T.textD}}>{conn.desc}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <Dot color={ok?T.green:T.textL} pulse={ok}/>
+          <Tag label={ok?"Connected":"Not configured"} color={ok?T.green:T.textL} xs/>
+          <button onClick={()=>setOpen(o=>!o)} style={{background:"none",border:`1.5px solid ${T.border}`,borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textD,fontFamily:"inherit"}}>
+            {ok?"Edit":"Configure"}
+          </button>
+          {ok&&<button onClick={onDel} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:T.red,opacity:.6,padding:2}}>x</button>}
+        </div>
+      </div>
+      {open&&(
+        <div style={{borderTop:`1px solid ${T.border}`,padding:"14px 16px",background:T.surfaceL}}>
+          <div style={{fontSize:11.5,color:T.textD,marginBottom:12}}>
+            Get credentials: <a href={conn.link} target="_blank" rel="noreferrer" style={{color:conn.color,fontWeight:600}}>{conn.link}</a>
+          </div>
+          {conn.fields.map(f=>(
+            <div key={f.k} style={{marginBottom:10}}>
+              <Label style={{marginBottom:5}}>{f.l}</Label>
+              <Input value={vals[f.k]||""} onChange={v=>setVals(x=>({...x,[f.k]:v}))} placeholder={f.p} type={f.t}/>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <Btn onClick={()=>{onSave(vals);setOpen(false);}} small>Save</Btn>
+            <Btn onClick={()=>setOpen(false)} variant="ghost" small>Cancel</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const SourceRow = ({s,selected,onToggle,onDel}) => (
+  <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 13px",borderRadius:7,border:`1.5px solid ${selected?T.primary+"60":T.border}`,background:selected?T.primaryL:T.surface,cursor:"pointer",transition:"all .12s"}}>
+    <
